@@ -1,11 +1,13 @@
 # Mini Search Engine 🔍
 
-A full-stack search engine with Python backend, React frontend, real-time web crawler, and MongoDB integration. Features BM25 ranking, PageRank, and interactive graph visualization.
+A full-stack search engine with Python backend, React frontend, real-time web crawler, and **MongoDB integration**. Features BM25 ranking, PageRank, and interactive graph visualization.
 
 ## ✨ Features
 
 ### 🔍 Search Engine
 - **BM25 Ranking** with PageRank integration
+- **MongoDB or File-based** storage (your choice!)
+- **Real-time indexing** from MongoDB
 - **Title Boosting** for better relevance
 - **500 results** with pagination (10 per page)
 - **URL state management** (shareable search links)
@@ -14,11 +16,18 @@ A full-stack search engine with Python backend, React frontend, real-time web cr
 
 ### 🕷️ Web Crawler
 - **Real-time crawling** via WebSocket
+- **Save directly to MongoDB** (toggle in UI)
 - **Interactive graph visualization** (React Flow)
 - **Configurable depth** and page limits
-- **MongoDB storage** (optional)
 - **Live statistics** and progress tracking
 - **Domain-restricted** crawling
+
+### 🗄️ MongoDB Integration (NEW!)
+- **MongoDB Atlas** or local MongoDB support
+- **Automatic indexing** from database
+- **Smart caching** for performance
+- **Duplicate handling** (updates existing URLs)
+- **Production-ready** architecture
 
 ### 🎨 Modern UI
 - **NextUI components** with dark theme
@@ -28,6 +37,21 @@ A full-stack search engine with Python backend, React frontend, real-time web cr
 - **Collapsible search bar** on focus
 
 ## 🚀 Quick Start
+
+### New: MongoDB Setup (Recommended!)
+
+```bash
+# Interactive setup wizard
+./setup_mongodb.sh
+```
+
+This will:
+1. Check/install MongoDB
+2. Configure your connection string
+3. Test the connection
+4. Ready to crawl & search!
+
+See **[MONGODB_GUIDE.md](MONGODB_GUIDE.md)** for detailed instructions.
 
 ### Option 1: Start Everything (Recommended)
 
@@ -43,6 +67,7 @@ Then open http://localhost:3000 in your browser!
 **Terminal 1 - Backend:**
 ```bash
 cd backend
+source mongo_config.sh  # Load MongoDB settings
 export DATA_DIR=../data_wiki PORT=5001
 python3 server.py
 ```
@@ -208,6 +233,24 @@ python server.py
 
 Visit http://localhost:5000
 
+## 📚 Documentation
+
+### For Development
+- **[MONGODB_GUIDE.md](MONGODB_GUIDE.md)** - Complete MongoDB setup, features, and troubleshooting
+- **[MONGODB_INTEGRATION.md](MONGODB_INTEGRATION.md)** - Technical overview of the MongoDB integration
+
+### For Production Deployment
+- **[PRODUCTION_QUICKSTART.md](PRODUCTION_QUICKSTART.md)** - Quick reference for production setup ⭐
+- **[PRODUCTION_GUIDE.md](PRODUCTION_GUIDE.md)** - Comprehensive deployment guide for all platforms
+
+### Setting MongoDB URI in Production
+Choose one method:
+1. **Environment Variables** (most secure): `export MONGODB_URI="mongodb+srv://..."`
+2. **`.env` File** (private servers): Create `backend/.env` with your URI
+3. **Platform Config**: Use Heroku/AWS/Docker environment variables
+
+See **[PRODUCTION_QUICKSTART.md](PRODUCTION_QUICKSTART.md)** for step-by-step instructions.
+
 ## API Endpoints
 
 ### Search
@@ -246,11 +289,34 @@ Returns index statistics (total docs, vocab size, avg doc length).
 
 ## Configuration
 
-Set environment variables:
+### Environment Variables
 
-- `DATA_DIR`: Path to data directory (default: ./data)
-- `PORT`: Server port (default: 5000)
-- `REACT_APP_API_URL`: API base URL for React app (default: /api)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MONGODB_URI` | `mongodb://localhost:27017/` | MongoDB connection string |
+| `USE_MONGODB` | `true` | Enable MongoDB (set to `false` for file-based) |
+| `DATA_DIR` | `./data` | Path to data directory (file-based fallback) |
+| `PORT` | `5000` | Server port |
+| `REACT_APP_API_URL` | `/api` | API base URL for React app |
+
+### Production Setup
+
+**Method 1: Environment Variables** (recommended)
+```bash
+export MONGODB_URI="mongodb+srv://user:pass@cluster.mongodb.net/"
+export USE_MONGODB=true
+python3 backend/server.py
+```
+
+**Method 2: .env File**
+```bash
+cd backend
+cp .env.example .env
+# Edit .env with your MongoDB URI
+python3 server.py
+```
+
+See **[PRODUCTION_QUICKSTART.md](PRODUCTION_QUICKSTART.md)** for complete instructions.
 
 ## License
 

@@ -1,0 +1,11 @@
+data/
+data_wiki/
+__pycache__/
+*.pyc
+.env
+node_modules/
+.git/
+*.md
+*.sh
+frontend/node_modules/
+backend/__pycache__/

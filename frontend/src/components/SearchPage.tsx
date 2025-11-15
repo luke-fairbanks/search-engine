@@ -17,6 +17,7 @@ const SearchPage: React.FC = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [searchTime, setSearchTime] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isMobileFocused, setIsMobileFocused] = useState(false);
 
   const handleSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) {
@@ -89,13 +90,13 @@ const SearchPage: React.FC = () => {
     const totalPages = results ? Math.ceil(results.results.length / RESULTS_PER_PAGE) : 0;
 
   return (
-    <div className={`bg-gradient-to-br from-gray-900 via-slate-900 to-gray-950 flex flex-col ${hasSearched ? 'min-h-screen' : 'h-[calc(100vh-4rem)]'}`}>
+    <div className={`bg-gradient-to-br from-gray-900 via-slate-900 to-gray-950 flex flex-col ${hasSearched ? 'min-h-screen' : 'h-[calc(100vh-5rem)]'}`}>
       {/* Search Box - Animated Container */}
       <motion.div
         className={`w-full ${hasSearched ? 'sticky top-16 z-10 bg-slate-900/20 backdrop-blur-xl border-b border-slate-700/50 shadow-2xl' : 'z-10'}`}
         initial={false}
         animate={{
-          marginTop: hasSearched ? '0rem' : '30vh',
+          marginTop: hasSearched ? '0rem' : (isMobileFocused ? '10vh' : '30vh'),
           paddingTop: hasSearched ? '1rem' : '0rem',
           paddingBottom: hasSearched ? '1rem' : '0rem',
         }}
@@ -112,23 +113,29 @@ const SearchPage: React.FC = () => {
               className="text-center overflow-hidden"
               initial={{ opacity: 1, maxHeight: '300px' }}
               animate={{
-                opacity: hasSearched ? 0 : 1,
-                maxHeight: hasSearched ? '0px' : '300px',
-                marginBottom: hasSearched ? '0px' : '3rem'
+                opacity: hasSearched || isMobileFocused ? 0 : 1,
+                maxHeight: hasSearched || isMobileFocused ? '0px' : '300px',
+                marginBottom: hasSearched || isMobileFocused ? '0px' : '3rem'
               }}
               transition={{
                 duration: 0.4,
                 ease: "easeInOut"
               }}
             >
-              <h2 className="text-6xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4 drop-shadow-2xl">
+              <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4 drop-shadow-2xl">
                 Search the Web
               </h2>
-              <p className="text-lg text-slate-400">
+              <p className="text-base sm:text-lg text-slate-400">
                 Powered by BM25 ranking and PageRank algorithm
               </p>
             </motion.div>
-            <SearchBox onSearch={handleSearch} loading={loading} initialQuery={query} hasSearched={hasSearched} />
+            <SearchBox 
+              onSearch={handleSearch} 
+              loading={loading} 
+              initialQuery={query} 
+              hasSearched={hasSearched}
+              onMobileFocus={setIsMobileFocused}
+            />
           </motion.div>
         </div>
       </motion.div>

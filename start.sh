@@ -59,9 +59,32 @@ trap cleanup SIGINT SIGTERM
 # Start backend
 echo -e "\n${BLUE}📡 Starting backend server...${NC}"
 cd "$PROJECT_ROOT/backend"
-export DATA_DIR=../data_wiki
-export PORT=5001
-export MONGODB_URI=${MONGODB_URI:-mongodb://localhost:27017/}
+
+# Load MongoDB configuration if it exists (checks both .env and mongo_config.sh)
+if [ -f "$PROJECT_ROOT/backend/.env" ]; then
+    echo -e "${YELLOW}Loading .env configuration...${NC}"
+    # Export all variables from .env file
+    set -a
+    source "$PROJECT_ROOT/backend/.env"
+    set +a
+    echo -e "${YELLOW}  MongoDB URI: ${MONGODB_URI:0:30}...${NC}"
+    echo -e "${YELLOW}  Use MongoDB: $USE_MONGODB${NC}"
+elif [ -f "$PROJECT_ROOT/backend/mongo_config.sh" ]; then
+    echo -e "${YELLOW}Loading mongo_config.sh...${NC}"
+    source "$PROJECT_ROOT/backend/mongo_config.sh"
+else
+    # Default settings only if no config files exist
+    export DATA_DIR=${DATA_DIR:-../data_wiki}
+    export PORT=${PORT:-5001}
+    export MONGODB_URI=${MONGODB_URI:-mongodb://localhost:27017/}
+    export USE_MONGODB=${USE_MONGODB:-true}
+    echo -e "${YELLOW}  Using default configuration${NC}"
+    echo -e "${YELLOW}  MongoDB URI: $MONGODB_URI${NC}"
+    echo -e "${YELLOW}  Use MongoDB: $USE_MONGODB${NC}"
+fi
+
+# Set PORT for backend (allow override from config)
+export PORT=${PORT:-5001}
 
 /usr/bin/python3 server.py &
 BACKEND_PID=$!

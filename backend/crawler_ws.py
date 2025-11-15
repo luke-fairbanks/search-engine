@@ -64,9 +64,26 @@ class WebCrawler:
                 title = soup.find('title')
                 title_text = title.string.strip() if title else url
 
+                # Extract full text content
+                # Remove script and style elements
+                for script in soup(['script', 'style', 'noscript']):
+                    script.decompose()
+
+                # Get text content
+                text = soup.get_text()
+                # Clean up whitespace
+                lines = (line.strip() for line in text.splitlines())
+                chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+                full_text = ' '.join(chunk for chunk in chunks if chunk)
+
                 # Extract snippet
                 meta_desc = soup.find('meta', attrs={'name': 'description'})
                 snippet = meta_desc.get('content', '')[:200] if meta_desc else ''
+
+                # Extract text content for snippet if no meta description
+                if not snippet:
+                    # Use first 200 chars of full text
+                    snippet = full_text[:200] if full_text else ''
 
                 # Extract links
                 links = []
@@ -77,6 +94,7 @@ class WebCrawler:
 
                 return {
                     'title': title_text,
+                    'text': full_text,
                     'snippet': snippet,
                     'links': links
                 }, links
@@ -135,19 +153,28 @@ class WebCrawler:
                     # Save to MongoDB if enabled
                     if self.save_to_mongo and self.collection is not None:
                         try:
-                            await self.collection.insert_one({
-                                'url': url,
-                                'title': page_data['title'],
-                                'snippet': page_data['snippet'],
-                                'depth': depth,
-                                'parent_url': parent_url,
-                                'link_count': len(links),
-                                'links': links[:50],  # Store first 50 links
-                                'crawled_at': datetime.utcnow(),
-                                'start_url': self.start_url
-                            })
+                            # Check if URL already exists
+                            existing = await self.collection.find_one({'url': url})
+                            if existing:
+                                # Silently skip - document already exists
+                                pass
+                            else:
+                                # Insert new document
+                                await self.collection.insert_one({
+                                    'url': url,
+                                    'title': page_data['title'],
+                                    'text': page_data.get('text', ''),
+                                    'snippet': page_data['snippet'],
+                                    'depth': depth,
+                                    'parent_url': parent_url,
+                                    'link_count': len(links),
+                                    'links': links[:50],
+                                    'crawled_at': datetime.utcnow(),
+                                    'start_url': self.start_url
+                                })
+                                print(f"✓ Saved to MongoDB: {url}")
                         except Exception as e:
-                            print(f"MongoDB error: {e}")
+                            print(f"MongoDB error for {url}: {e}")
 
                     # Add new links to queue
                     for link in links:

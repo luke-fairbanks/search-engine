@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Input, Button, Card, CardBody, Chip, Switch, Tabs, Tab } from '@nextui-org/react';
+import { Input, Button, Card, CardBody, Chip, Tabs, Tab } from '@nextui-org/react';
+import { NumberInput } from '@heroui/number-input';
 import { motion } from 'framer-motion';
 import CrawlGraph from './CrawlGraph';
 
@@ -24,7 +25,6 @@ const CrawlPage: React.FC = () => {
   const [startUrl, setStartUrl] = useState('');
   const [maxDepth, setMaxDepth] = useState(2);
   const [maxPages, setMaxPages] = useState(100);
-  const [saveToMongo, setSaveToMongo] = useState(false);
   const [crawlStats, setCrawlStats] = useState<CrawlStats>({
     totalPages: 0,
     completedPages: 0,
@@ -64,14 +64,14 @@ const CrawlPage: React.FC = () => {
         url: startUrl,
         maxDepth,
         maxPages,
-        saveToMongo
+        saveToMongo: true
       };
       console.log('Sending config:', config);
       ws.send(JSON.stringify(config));
     };
 
     ws.onmessage = (event) => {
-      console.log('WebSocket message:', event.data);
+
       const data = JSON.parse(event.data);
 
       if (data.type === 'node') {
@@ -121,100 +121,184 @@ const CrawlPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-gray-900 via-slate-900 to-gray-950 py-6">
+    <div className="min-h-[calc(100vh-5rem)] bg-gradient-to-br from-gray-900 via-slate-900 to-gray-950 py-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-4"
+          className="mb-6"
         >
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
+          <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
             Web Crawler
           </h1>
-          <p className="text-slate-400">Start crawling from any URL and watch the graph grow in real-time</p>
+          <p className="text-slate-400 text-base sm:text-lg">Discover and index web content automatically</p>
+
+          {/* How it works section */}
+          <div className="mt-4 p-3 sm:p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+            <div className="flex items-start gap-2 sm:gap-3">
+              <div className="text-xl sm:text-2xl flex-shrink-0">💡</div>
+              <div>
+                <h3 className="text-blue-300 font-semibold mb-1 text-sm sm:text-base">How it works</h3>
+                <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
+                  Enter any URL to start crawling. The crawler will explore linked pages, extract their content,
+                  and <span className="text-blue-300 font-semibold">save everything to MongoDB</span>.
+                  Once crawled, all pages become instantly searchable on the main search page using a
+                  BM25 + PageRank algorithm.
+                </p>
+              </div>
+            </div>
+          </div>
         </motion.div>
 
         {/* Configuration Card */}
         <Card className="mb-4 bg-slate-800/60 border border-slate-700/40">
-          <CardBody className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <Input
-                label="Start URL"
-                placeholder="https://example.com"
-                value={startUrl}
-                onValueChange={setStartUrl}
-                disabled={crawlStats.status === 'crawling'}
-                classNames={{
-                  input: "text-white",
-                  inputWrapper: "bg-slate-700/50 border-slate-600/50"
-                }}
-              />
-              <Input
-                type="number"
-                label="Max Depth"
-                value={maxDepth.toString()}
-                onValueChange={(val) => setMaxDepth(parseInt(val) || 2)}
-                disabled={crawlStats.status === 'crawling'}
-                classNames={{
-                  input: "text-white",
-                  inputWrapper: "bg-slate-700/50 border-slate-600/50"
-                }}
-              />
-              <Input
-                type="number"
-                label="Max Pages"
-                value={maxPages.toString()}
-                onValueChange={(val) => setMaxPages(parseInt(val) || 100)}
-                disabled={crawlStats.status === 'crawling'}
-                classNames={{
-                  input: "text-white",
-                  inputWrapper: "bg-slate-700/50 border-slate-600/50"
-                }}
-              />
-            </div>
+          <CardBody className="p-4 sm:p-6">
+            <div className="grid grid-cols-1 gap-4 sm:gap-6">
+              {/* URL Input */}
+              <div>
+                <Input
+                  label="Starting URL"
+                  placeholder="https://example.com"
+                  value={startUrl}
+                  onValueChange={setStartUrl}
+                  disabled={crawlStats.status === 'crawling'}
+                  description="The webpage where crawling begins"
+                  classNames={{
+                    input: "text-white",
+                    inputWrapper: "bg-slate-700/50 border-slate-600/50 hover:bg-slate-700/70 transition-colors",
+                    label: "text-slate-300 font-semibold",
+                    description: "text-slate-400"
+                  }}
+                  startContent={
+                    <span className="text-slate-400">🌐</span>
+                  }
+                />
+              </div>
 
-            <div className="flex items-center gap-4 mb-4">
-              <Switch
-                isSelected={saveToMongo}
-                onValueChange={setSaveToMongo}
-                isDisabled={crawlStats.status === 'crawling'}
-                classNames={{
-                  wrapper: "group-data-[selected=true]:bg-gradient-to-r from-blue-500 to-purple-600"
-                }}
-              >
-                <span className="text-white text-sm">Save to MongoDB</span>
-              </Switch>
-              {saveToMongo && (
-                <Chip size="sm" variant="flat" className="bg-green-500/20 text-green-300">
-                  Database enabled
+              {/* Number inputs with better labels */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-slate-300 font-semibold text-sm mb-2 block">
+                    Crawl Depth
+                  </label>
+
+                  <NumberInput
+                    value={maxDepth}
+                    onValueChange={(val: number) => setMaxDepth(Math.max(1, val || 100))}
+                    disabled={crawlStats.status === 'crawling'}
+                    description="How many links deep to explore (1-5)"
+                    min={1}
+                    max={5}
+                    classNames={{
+                      input: "text-white focus:outline-none focus:ring-0 focus:border-transparent placeholder:text-slate-400",
+                      inputWrapper: "bg-slate-700/50 border-slate-600/50 hover:bg-slate-700/70 transition-colors focus-within:outline-none focus-within:ring-0 focus-within:border-transparent",
+                      description: "text-slate-400",
+                    }}
+                    size="sm"
+                    startContent={
+                      <span className="text-slate-400">🔗</span>
+                    }
+                    />
+                  <div className="mt-2 flex gap-1">
+                    {[1, 2, 3, 4, 5].map(depth => (
+                      <button
+                        key={depth}
+                        onClick={() => setMaxDepth(depth)}
+                        disabled={crawlStats.status === 'crawling'}
+                        className={`flex-1 py-1 px-2 rounded text-xs font-semibold transition-all ${
+                          maxDepth === depth
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
+                        } ${crawlStats.status === 'crawling' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        {depth}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-slate-300 font-semibold text-sm mb-2 block">
+                    Page Limit
+                  </label>
+
+                    <NumberInput
+                    value={maxPages}
+                    onValueChange={(val: number) => setMaxPages(Math.max(1, val || 100))}
+                    disabled={crawlStats.status === 'crawling'}
+                    description="Maximum number of pages to crawl"
+                    min={1}
+                    classNames={{
+                      input: "text-white focus:outline-none focus:ring-0 focus:border-transparent placeholder:text-slate-400",
+                      inputWrapper: "bg-slate-700/50 border-slate-600/50 hover:bg-slate-700/70 transition-colors focus-within:outline-none focus-within:ring-0 focus-within:border-transparent",
+                      description: "text-slate-400",
+                    }}
+                    size="sm"
+                    startContent={
+                      <span className="text-slate-400">📄</span>
+                    }
+                    />
+                  <div className="mt-2 flex gap-1">
+                    {[50, 100, 250, 500].map(pages => (
+                      <button
+                        key={pages}
+                        onClick={() => setMaxPages(pages)}
+                        disabled={crawlStats.status === 'crawling'}
+                        className={`flex-1 py-1 px-2 rounded text-xs font-semibold transition-all ${
+                          maxPages === pages
+                            ? 'bg-purple-500 text-white'
+                            : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
+                        } ${crawlStats.status === 'crawling' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        {pages}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Database indicator */}
+              <div className="flex items-center gap-3 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                <div className="text-xl">💾</div>
+                <div className="flex-1">
+                  <p className="text-green-300 font-semibold text-sm">Auto-save to MongoDB</p>
+                  <p className="text-slate-400 text-xs">All crawled pages are automatically saved and indexed for search</p>
+                </div>
+                <Chip size="sm" className="bg-green-500/20 text-green-300 border-green-500/30">
+                  Enabled
                 </Chip>
-              )}
+              </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 mt-6">
               {crawlStats.status !== 'crawling' ? (
                 <Button
                   onClick={startCrawl}
                   isDisabled={!startUrl.trim()}
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold"
+                  size="lg"
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all"
                 >
+                  <span className="text-lg">🚀</span>
                   Start Crawling
                 </Button>
               ) : (
                 <Button
                   onClick={stopCrawl}
+                  size="lg"
                   color="danger"
-                  className="font-semibold"
+                  className="font-semibold shadow-lg"
                 >
+                  <span className="text-lg">⏹️</span>
                   Stop Crawling
                 </Button>
               )}
 
               {isConnected && (
-                <Chip color="success" variant="flat">
-                  Connected
-                </Chip>
+                <div className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-xl">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                  <span className="text-green-300 font-semibold text-sm">Live</span>
+                </div>
               )}
             </div>
           </CardBody>

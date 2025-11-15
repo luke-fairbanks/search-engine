@@ -1,17 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import ReactFlow, {
-  Node,
-  Edge,
-  addEdge,
-  Connection,
-  useNodesState,
-  useEdgesState,
-  Controls,
-  Background,
-  MiniMap,
-  BackgroundVariant,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
+import React, { useEffect, useState, useRef } from 'react';
+import ForceGraph2D from 'react-force-graph-2d';
 
 interface CrawlGraphProps {
   nodes: Array<{
@@ -23,175 +11,145 @@ interface CrawlGraphProps {
   }>;
 }
 
+interface GraphNode {
+  id: string;
+  name: string;
+  url: string;
+  depth: number;
+  status: string;
+  val: number;
+  x?: number;
+  y?: number;
+  vx?: number;
+  vy?: number;
+}
+
+interface GraphLink {
+  source: string;
+  target: string;
+}
+
 const CrawlGraph: React.FC<CrawlGraphProps> = ({ nodes: crawlNodes }) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [nodeMap, setNodeMap] = useState<Map<string, string>>(new Map());
+  const [graphData, setGraphData] = useState<{ nodes: GraphNode[]; links: GraphLink[] }>({
+    nodes: [],
+    links: []
+  });
+  const fgRef = useRef<any>();
+  const [isFirstRender, setIsFirstRender] = useState(true);
+  const prevNodesRef = useRef<Map<string, any>>(new Map());
 
   useEffect(() => {
-    const newNodes: Node[] = [];
-    const newEdges: Edge[] = [];
-    const urlToId = new Map<string, string>();
-    const nodePositions = new Map<string, { x: number; y: number }>();
+    const existingNodes = prevNodesRef.current;
+    const graphNodes: GraphNode[] = [];
+    const graphLinks: GraphLink[] = [];
 
-    // First pass: create ID mapping
+    // Create nodes, preserving existing positions
     crawlNodes.forEach((crawlNode, index) => {
-      const nodeId = `node-${index}`;
-      urlToId.set(crawlNode.url, nodeId);
-    });
+      const nodeId = crawlNode.url;
 
-    // Group children by parent
-    const childrenByParent = new Map<string, any[]>();
-    crawlNodes.forEach((node) => {
-      if (node.parent) {
-        if (!childrenByParent.has(node.parent)) {
-          childrenByParent.set(node.parent, []);
-        }
-        childrenByParent.get(node.parent)!.push(node);
-      }
-    });
+      // Determine node size based on status
+      let val = 5;
+      if (crawlNode.depth === 0) val = 15;
+      else if (crawlNode.status === 'crawling') val = 8;
 
-    // Calculate positions recursively starting from root
-    const positionNode = (node: any, parentX: number = 0, parentY: number = 0, angle: number = 0, radius: number = 0) => {
-      // Skip if already positioned
-      if (nodePositions.has(node.url)) return;
-
-      let x: number, y: number;
-      if (node.depth === 0) {
-        // Root node at center
-        x = 0;
-        y = 0;
-      } else {
-        // Position around parent
-        x = parentX + Math.cos(angle) * radius;
-        y = parentY + Math.sin(angle) * radius;
-      }
-
-      nodePositions.set(node.url, { x, y });
-
-      // Position children around this node
-      const children = childrenByParent.get(node.url) || [];
-      if (children.length > 0) {
-        const childRadius = 150 + (node.depth * 80); // Increase radius with depth
-        const angleStep = (2 * Math.PI) / children.length;
-
-        children.forEach((child, i) => {
-          const childAngle = i * angleStep;
-          positionNode(child, x, y, childAngle, childRadius);
-        });
-      }
-    };
-
-    // Find root node (the one with depth 0)
-    const rootNode = crawlNodes.find(n => n.depth === 0);
-    if (rootNode) {
-      positionNode(rootNode);
-    }
-
-    // Position any remaining unpositioned nodes in a fallback circle
-    const unpositionedNodes = crawlNodes.filter(n => !nodePositions.has(n.url));
-    if (unpositionedNodes.length > 0) {
-      const fallbackRadius = 400;
-      const angleStep = (2 * Math.PI) / unpositionedNodes.length;
-      unpositionedNodes.forEach((node, i) => {
-        const angle = i * angleStep;
-        nodePositions.set(node.url, {
-          x: Math.cos(angle) * fallbackRadius,
-          y: Math.sin(angle) * fallbackRadius
-        });
-      });
-    }
-
-    // Create nodes with calculated positions
-    crawlNodes.forEach((crawlNode, index) => {
-      const nodeId = `node-${index}`;
-      const pos = nodePositions.get(crawlNode.url) || { x: 0, y: 0 };
-
-      // Determine node color based on status
-      let bgColor = '#64748b';
-      let borderColor = '#475569';
-      if (crawlNode.status === 'completed') {
-        bgColor = '#10b981';
-        borderColor = '#059669';
-      } else if (crawlNode.status === 'crawling') {
-        bgColor = '#3b82f6';
-        borderColor = '#2563eb';
-      } else if (crawlNode.status === 'error') {
-        bgColor = '#ef4444';
-        borderColor = '#dc2626';
-      }
-
-      newNodes.push({
+      const existingNode = existingNodes.get(nodeId);
+      const newNode: any = {
         id: nodeId,
-        type: 'default',
-        position: pos,
-        data: {
-          label: (
-            <div className="text-[10px] leading-tight">
-              <div className="font-semibold truncate max-w-[80px]">
-                {crawlNode.title?.substring(0, 15) || '...'}
-              </div>
-            </div>
-          ),
-        },
-        style: {
-          background: bgColor,
-          color: 'white',
-          border: `1.5px solid ${borderColor}`,
-          borderRadius: '6px',
-          padding: '6px 8px',
-          fontSize: '10px',
-          width: 90,
-          height: 35,
-        },
-      });
+        name: crawlNode.title?.substring(0, 30) || crawlNode.url.substring(0, 30),
+        url: crawlNode.url,
+        depth: crawlNode.depth,
+        status: crawlNode.status,
+        val: val,
+      };
 
-      // Create edges
+      // Preserve position if node already exists
+      if (existingNode && existingNode.x !== undefined) {
+        newNode.x = existingNode.x;
+        newNode.y = existingNode.y;
+        newNode.vx = 0;
+        newNode.vy = 0;
+      }
+
+      graphNodes.push(newNode);
+
+      // Create links
       if (crawlNode.parent) {
-        const parentId = urlToId.get(crawlNode.parent);
-        if (parentId) {
-          newEdges.push({
-            id: `edge-${parentId}-${nodeId}`,
-            source: parentId,
-            target: nodeId,
-            type: 'smoothstep',
-            style: { stroke: '#475569', strokeWidth: 1.5, opacity: 0.5 },
-          });
-        }
+        graphLinks.push({
+          source: crawlNode.parent,
+          target: nodeId,
+        });
       }
     });
 
-    console.log(`Graph: ${newNodes.length} nodes, ${newEdges.length} edges`);
-    setNodes(newNodes);
-    setEdges(newEdges);
-    setNodeMap(urlToId);
-  }, [crawlNodes, setNodes, setEdges]);
+    // Update the ref with current nodes for next render
+    const newNodesMap = new Map();
+    graphNodes.forEach(node => {
+      newNodesMap.set(node.id, node);
+    });
+    prevNodesRef.current = newNodesMap;
 
-  const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
-  );
+    console.log(`Force Graph: ${graphNodes.length} nodes, ${graphLinks.length} links`);
+    setGraphData({ nodes: graphNodes, links: graphLinks });
+
+    // Center graph on first render or when root node appears
+    if (isFirstRender && graphNodes.length > 0) {
+      setTimeout(() => {
+        if (fgRef.current) {
+          fgRef.current.zoomToFit(400, 50);
+        }
+        setIsFirstRender(false);
+      }, 100);
+    }
+  }, [crawlNodes, isFirstRender]);
 
   return (
     <div className="w-full h-[600px] bg-slate-900 rounded-xl border border-slate-700/50 overflow-hidden">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        fitView
-        attributionPosition="bottom-left"
-      >
-        <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#334155" />
-        <Controls className="bg-slate-800 border border-slate-700" />
-        <MiniMap
-          className="bg-slate-800 border border-slate-700"
-          nodeColor={(node) => {
-            return node.style?.background as string || '#64748b';
-          }}
-        />
-      </ReactFlow>
+      <ForceGraph2D
+        ref={fgRef}
+        graphData={graphData}
+        nodeLabel={(node: any) => `${node.name}\nDepth: ${node.depth}\nStatus: ${node.status}`}
+        nodeVal={(node: any) => node.val}
+        nodeColor={(node: any) => {
+          if (node.status === 'completed') return '#10b981';
+          if (node.status === 'crawling') return '#3b82f6';
+          if (node.status === 'error') return '#ef4444';
+          return '#64748b';
+        }}
+        nodeCanvasObject={(node: any, ctx, globalScale) => {
+          const label = node.name;
+          const fontSize = 12 / globalScale;
+          ctx.font = `${fontSize}px Sans-Serif`;
+
+          // Draw node circle
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, node.val, 0, 2 * Math.PI);
+          ctx.fillStyle = node.color || '#64748b';
+          ctx.fill();
+
+          // Draw label
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#ffffff';
+          // ctx.fillText(label, node.x, node.y + node.val + fontSize);
+        }}
+        linkColor={() => '#475569'}
+        linkWidth={1.5}
+        linkDirectionalParticles={2}
+        linkDirectionalParticleWidth={2}
+        linkDirectionalParticleSpeed={0.005}
+        backgroundColor="#0f172a"
+        d3VelocityDecay={0.3}
+        d3AlphaDecay={0.01}
+        warmupTicks={100}
+        cooldownTicks={0}
+        enableNodeDrag={true}
+        enableZoomInteraction={true}
+        enablePanInteraction={true}
+        onNodeClick={(node: any) => {
+          console.log('Clicked node:', node);
+          window.open(node.url, '_blank');
+        }}
+      />
     </div>
   );
 };

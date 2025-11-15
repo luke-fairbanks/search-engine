@@ -14,5 +14,15 @@ export const searchApi = {
   getStats: async (): Promise<IndexStats> => {
     const response = await axios.get(`${API_BASE_URL}/stats`);
     return response.data;
+  },
+
+  getSuggestions: async (query: string, limit: number = 8): Promise<string[]> => {
+    if (!query || query.length < 2) {
+      return [];
+    }
+    const response = await axios.get(`${API_BASE_URL}/suggest`, {
+      params: { q: query, limit }
+    });
+    return response.data.suggestions || [];
   }
 };
