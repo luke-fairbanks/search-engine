@@ -52,7 +52,7 @@ const CrawlPage: React.FC = () => {
     const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001';
     // Convert http/https to ws/wss
     const wsUrl = apiUrl.replace(/^http/, 'ws') + '/ws/crawl';
-    
+
     // Initialize WebSocket connection
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -232,7 +232,7 @@ const CrawlPage: React.FC = () => {
                     value={maxPages}
                     onValueChange={(val: number) => setMaxPages(Math.max(1, Math.min(val || 25, 50)))}
                     disabled={crawlStats.status === 'crawling'}
-                    description="Max 50 pages (memory limited on free tier)"
+                    description="Max 50 pages (my backend memory is limited to the free tier 😅)"
                     min={1}
                     max={50}
                     classNames={{

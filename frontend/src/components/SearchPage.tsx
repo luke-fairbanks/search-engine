@@ -174,22 +174,24 @@ const SearchPage: React.FC = () => {
         )}
 
         {/* Search Results */}
-        {paginatedResults && (
+        {(paginatedResults || loading) && (
           <div className="mt-8 mb-12">
             {/* Search Info - Subtle Layer */}
-            <div className="mb-6 flex items-center justify-between px-2">
-              <p className="text-slate-400 text-sm">
-                About <strong className="text-slate-200">{results?.results.length.toLocaleString()}</strong> results
-                <span className="text-slate-500"> ({searchTime.toFixed(2)} seconds)</span>
-              </p>
-              {totalPages > 1 && (
-                <p className="text-slate-500 text-sm">
-                  Page <span className="text-slate-300">{currentPage}</span> of {totalPages}
+            {!loading && paginatedResults && (
+              <div className="mb-6 flex items-center justify-between px-2">
+                <p className="text-slate-400 text-sm">
+                  About <strong className="text-slate-200">{results?.results.length.toLocaleString()}</strong> results
+                  <span className="text-slate-500"> ({searchTime.toFixed(2)} seconds)</span>
                 </p>
-              )}
-            </div>
+                {totalPages > 1 && (
+                  <p className="text-slate-500 text-sm">
+                    Page <span className="text-slate-300">{currentPage}</span> of {totalPages}
+                  </p>
+                )}
+              </div>
+            )}
 
-            <SearchResults results={paginatedResults} loading={loading} query={query} />
+            <SearchResults results={paginatedResults || { results: [], query: query, total: 0 }} loading={loading} query={query} />
 
             {/* Pagination - Elevated Layer */}
             {totalPages > 1 && (

@@ -99,11 +99,11 @@ class WebCrawler:
                     'snippet': snippet,
                     'links': links
                 }
-                
+
                 # Clear soup to free memory
                 del soup
                 del html
-                
+
                 return result, links
         except Exception as e:
             print(f"Error crawling {url}: {e}")
@@ -187,7 +187,7 @@ class WebCrawler:
                     for link in links:
                         if link not in self.visited and len(self.queue) < 100:
                             self.queue.append((link, depth + 1, url))
-                    
+
                     # Periodically clear old data to save memory
                     self.page_count += 1
                     if self.page_count % 10 == 0:

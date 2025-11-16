@@ -25,7 +25,7 @@ const SearchBox: React.FC<SearchBoxProps> = ({ onSearch, loading = false, initia
   // Detect if device is mobile
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640); // sm breakpoint
+      setIsMobile(window.innerWidth < 800); // sm breakpoint
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
@@ -130,8 +130,8 @@ const SearchBox: React.FC<SearchBoxProps> = ({ onSearch, loading = false, initia
     }
   };
 
-  // On mobile when focused, hide the button. On desktop, show it when focused or not searched yet
-  const showButton = isMobile ? (!isFocused && !hasSearched) : (!hasSearched || isFocused);
+  // On mobile when focused, hide the button. On desktop, show when not searched yet or when focused
+  const showButton = isMobile ? !isFocused : (!hasSearched || isFocused);
 
   return (
     <form onSubmit={handleSubmit} className="relative w-full flex max-w-3xl mx-auto px-2 sm:px-0">
@@ -216,17 +216,17 @@ const SearchBox: React.FC<SearchBoxProps> = ({ onSearch, loading = false, initia
           )}
         </motion.div>
         <motion.div
+          initial={false}
           animate={{
             opacity: showButton ? 1 : 0,
+            scale: showButton ? 1 : 0.95,
             width: showButton ? 'auto' : '0px',
-            marginLeft: showButton ? '0rem' : '0rem',
           }}
           transition={{
-            type: "spring",
-            stiffness: 150,
-            damping: 20
+            duration: 0.2,
+            ease: "easeOut"
           }}
-          style={{ overflow: 'hidden' }}
+          style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}
         >
           <Button
             type="submit"
