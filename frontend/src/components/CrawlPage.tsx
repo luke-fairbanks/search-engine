@@ -24,7 +24,7 @@ interface CrawlStats {
 const CrawlPage: React.FC = () => {
   const [startUrl, setStartUrl] = useState('');
   const [maxDepth, setMaxDepth] = useState(2);
-  const [maxPages, setMaxPages] = useState(100);
+  const [maxPages, setMaxPages] = useState(25);
   const [crawlStats, setCrawlStats] = useState<CrawlStats>({
     totalPages: 0,
     completedPages: 0,
@@ -230,10 +230,11 @@ const CrawlPage: React.FC = () => {
 
                     <NumberInput
                     value={maxPages}
-                    onValueChange={(val: number) => setMaxPages(Math.max(1, val || 100))}
+                    onValueChange={(val: number) => setMaxPages(Math.max(1, Math.min(val || 25, 50)))}
                     disabled={crawlStats.status === 'crawling'}
-                    description="Maximum number of pages to crawl"
+                    description="Max 50 pages (memory limited on free tier)"
                     min={1}
+                    max={50}
                     classNames={{
                       input: "text-white focus:outline-none focus:ring-0 focus:border-transparent placeholder:text-slate-400",
                       inputWrapper: "bg-slate-700/50 border-slate-600/50 hover:bg-slate-700/70 transition-colors focus-within:outline-none focus-within:ring-0 focus-within:border-transparent",
@@ -245,7 +246,7 @@ const CrawlPage: React.FC = () => {
                     }
                     />
                   <div className="mt-2 flex gap-1">
-                    {[50, 100, 250, 500].map(pages => (
+                    {[10, 25, 50].map(pages => (
                       <button
                         key={pages}
                         onClick={() => setMaxPages(pages)}

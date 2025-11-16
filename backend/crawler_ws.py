@@ -25,13 +25,14 @@ class WebCrawler:
     def __init__(self, start_url, max_depth=2, max_pages=100, save_to_mongo=False, mongo_client=None):
         self.start_url = start_url
         self.max_depth = max_depth
-        self.max_pages = max_pages
+        self.max_pages = min(max_pages, 50)  # Limit to 50 pages max on low memory
         self.visited = set()
         self.queue = deque([(start_url, 0, None)])  # (url, depth, parent_url)
         self.start_time = time.time()
         self.save_to_mongo = save_to_mongo and MONGO_AVAILABLE
         self.mongo_client = mongo_client
         self.db = None
+        self.page_count = 0
 
         if self.save_to_mongo and mongo_client:
             self.db = mongo_client.crawler_db
@@ -64,17 +65,17 @@ class WebCrawler:
                 title = soup.find('title')
                 title_text = title.string.strip() if title else url
 
-                # Extract full text content
+                # Extract limited text content to save memory
                 # Remove script and style elements
                 for script in soup(['script', 'style', 'noscript']):
                     script.decompose()
 
-                # Get text content
-                text = soup.get_text()
+                # Get text content (limit to first 5000 chars to save memory)
+                text = soup.get_text()[:5000]
                 # Clean up whitespace
                 lines = (line.strip() for line in text.splitlines())
                 chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-                full_text = ' '.join(chunk for chunk in chunks if chunk)
+                full_text = ' '.join(chunk for chunk in chunks if chunk)[:5000]
 
                 # Extract snippet
                 meta_desc = soup.find('meta', attrs={'name': 'description'})
@@ -85,19 +86,25 @@ class WebCrawler:
                     # Use first 200 chars of full text
                     snippet = full_text[:200] if full_text else ''
 
-                # Extract links
+                # Extract links (limit to 20 to save memory)
                 links = []
-                for link in soup.find_all('a', href=True):
+                for link in soup.find_all('a', href=True)[:20]:
                     absolute_url = urljoin(url, link['href'])
                     if self.is_valid_url(absolute_url, self.start_url):
                         links.append(absolute_url)
 
-                return {
+                result = {
                     'title': title_text,
                     'text': full_text,
                     'snippet': snippet,
                     'links': links
-                }, links
+                }
+                
+                # Clear soup to free memory
+                del soup
+                del html
+                
+                return result, links
         except Exception as e:
             print(f"Error crawling {url}: {e}")
             return None, []
@@ -176,10 +183,17 @@ class WebCrawler:
                         except Exception as e:
                             print(f"MongoDB error for {url}: {e}")
 
-                    # Add new links to queue
+                    # Add new links to queue (limit queue size)
                     for link in links:
-                        if link not in self.visited:
+                        if link not in self.visited and len(self.queue) < 100:
                             self.queue.append((link, depth + 1, url))
+                    
+                    # Periodically clear old data to save memory
+                    self.page_count += 1
+                    if self.page_count % 10 == 0:
+                        # Keep only recent visited URLs
+                        if len(self.visited) > 100:
+                            self.visited = set(list(self.visited)[-50:])
                 else:
                     # Send error status
                     self._send_ws(ws, {
