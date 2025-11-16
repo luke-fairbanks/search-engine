@@ -3,6 +3,7 @@ import { SearchResponse, IndexStats } from '../types/SearchTypes';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
+// to update git
 export const searchApi = {
   search: async (query: string, k: number = 10, alpha: number = 0.2, beta: number = 0.8): Promise<SearchResponse> => {
     const response = await axios.get(`${API_BASE_URL}/search`, {
