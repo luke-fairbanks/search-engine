@@ -16,9 +16,5 @@
     "api/**/*.py": {
       "runtime": "python3.9"
     }
-  },
-  "env": {
-    "MONGODB_URI": "@mongodb_uri",
-    "USE_MONGODB": "true"
   }
 }
