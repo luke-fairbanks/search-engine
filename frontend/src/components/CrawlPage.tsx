@@ -48,8 +48,13 @@ const CrawlPage: React.FC = () => {
   const startCrawl = () => {
     if (!startUrl.trim()) return;
 
+    // Get WebSocket URL from environment variable or default to localhost
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+    // Convert http/https to ws/wss
+    const wsUrl = apiUrl.replace(/^http/, 'ws') + '/ws/crawl';
+    
     // Initialize WebSocket connection
-    const ws = new WebSocket('ws://localhost:5001/ws/crawl');
+    const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
