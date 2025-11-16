@@ -26,10 +26,10 @@ def suggest():
     """Get search suggestions"""
     query = request.args.get('q', '').strip().lower()
     limit = int(request.args.get('limit', 8))
-    
+
     if not query or len(query) < 2:
         return jsonify({'suggestions': []})
-    
+
     try:
         if mongo_search_engine:
             suggestions = mongo_search_engine.get_suggestions(query, limit)
