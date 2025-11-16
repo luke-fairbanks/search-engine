@@ -37,6 +37,11 @@ DATA_DIR = os.environ.get('DATA_DIR', '../data_wiki')
 MONGODB_URI = os.environ.get('MONGODB_URI', 'mongodb://localhost:27017/')
 USE_MONGODB = os.environ.get('USE_MONGODB', 'true').lower() == 'true'
 
+@app.route('/api/health', methods=['GET'])
+def health():
+    """Health check endpoint for monitoring backend status"""
+    return jsonify({'status': 'ok', 'message': 'Backend is running'}), 200
+
 # Initialize MongoDB search engine if enabled
 mongo_search_engine = None
 if USE_MONGODB:

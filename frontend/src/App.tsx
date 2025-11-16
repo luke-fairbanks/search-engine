@@ -4,9 +4,11 @@ import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from
 import SearchPage from './components/SearchPage';
 import CrawlPage from './components/CrawlPage';
 import Sidebar from './components/Sidebar';
+import BackendStatus from './components/BackendStatus';
 
 function AppContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isBackendOnline, setIsBackendOnline] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
   const currentPage = location.pathname === '/crawler' ? 'crawl' : 'search';
@@ -18,6 +20,9 @@ function AppContent() {
   return (
     <NextUIProvider>
       <div className="dark text-foreground bg-slate-900 min-h-screen">
+        {/* Backend Status Banner */}
+        <BackendStatus onStatusChange={setIsBackendOnline} />
+        
         {/* Header Bar with Hamburger Menu */}
         <div className="fixed top-0 left-0 right-0 z-20 flex items-center px-6 py-4 bg-slate-900/50 backdrop-blur-xl border-b border-slate-700/30">
           <button

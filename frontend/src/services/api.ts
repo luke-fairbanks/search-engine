@@ -6,6 +6,17 @@ console.log("API_BASE_URL:", API_BASE_URL);
 
 // to update git
 export const searchApi = {
+  health: async (): Promise<boolean> => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/health`, {
+        timeout: 5000
+      });
+      return response.status === 200;
+    } catch (error) {
+      return false;
+    }
+  },
+
   search: async (query: string, k: number = 10, alpha: number = 0.2, beta: number = 0.8): Promise<SearchResponse> => {
     const response = await axios.get(`${API_BASE_URL}/search`, {
       params: { q: query, alpha, beta, k }
