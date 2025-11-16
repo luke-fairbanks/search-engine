@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 import sys
+import json
 
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
@@ -21,25 +22,35 @@ if MONGODB_URI:
     except Exception as e:
         print(f"MongoDB connection failed: {e}")
 
-@app.route('/api/suggest')
-def suggest():
-    """Get search suggestions"""
-    query = request.args.get('q', '').strip().lower()
-    limit = int(request.args.get('limit', 8))
+def handler(event, context):
+    """Vercel serverless function handler"""
+    query = event.get('queryStringParameters', {}).get('q', '').strip().lower()
+    limit = int(event.get('queryStringParameters', {}).get('limit', 8))
     
     if not query or len(query) < 2:
-        return jsonify({'suggestions': []})
+        return {
+            'statusCode': 200,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps({'suggestions': []})
+        }
     
     try:
         if mongo_search_engine:
             suggestions = mongo_search_engine.get_suggestions(query, limit)
-            return jsonify({'suggestions': suggestions})
+            return {
+                'statusCode': 200,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps({'suggestions': suggestions})
+            }
         else:
-            return jsonify({'suggestions': []}), 200
+            return {
+                'statusCode': 200,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps({'suggestions': []})
+            }
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# Vercel serverless function handler
-def handler(request):
-    with app.request_context(request.environ):
-        return app.full_dispatch_request()
+        return {
+            'statusCode': 500,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps({'error': str(e)})
+        }

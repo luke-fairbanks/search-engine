@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 import sys
+import json
 
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
@@ -21,20 +22,26 @@ if MONGODB_URI:
     except Exception as e:
         print(f"MongoDB connection failed: {e}")
 
-@app.route('/api/stats')
-def stats():
-    """Get index statistics"""
+def handler(event, context):
+    """Vercel serverless function handler"""
     try:
         if mongo_search_engine:
             stats_data = mongo_search_engine.get_stats()
             stats_data['source'] = 'mongodb'
-            return jsonify(stats_data)
+            return {
+                'statusCode': 200,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps(stats_data)
+            }
         else:
-            return jsonify({'error': 'Search engine not available'}), 503
+            return {
+                'statusCode': 503,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps({'error': 'Search engine not available'})
+            }
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# Vercel serverless function handler
-def handler(request):
-    with app.request_context(request.environ):
-        return app.full_dispatch_request()
+        return {
+            'statusCode': 500,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps({'error': str(e)})
+        }

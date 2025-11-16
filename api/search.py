@@ -21,22 +21,29 @@ if MONGODB_URI:
     except Exception as e:
         print(f"MongoDB connection failed: {e}")
 
-@app.route('/api/search')
-def search():
-    """Search endpoint"""
-    query = request.args.get('q', '').strip()
+def handler(event, context):
+    """Vercel serverless function handler"""
+    query = event.get('queryStringParameters', {}).get('q', '').strip()
     if not query:
-        return jsonify({'error': 'Query parameter "q" is required'}), 400
+        return {
+            'statusCode': 400,
+            'headers': {'Content-Type': 'application/json'},
+            'body': '{"error": "Query parameter q is required"}'
+        }
 
-    alpha = float(request.args.get('alpha', 0.2))
-    beta = float(request.args.get('beta', 0.8))
-    k = int(request.args.get('k', 10))
+    alpha = float(event.get('queryStringParameters', {}).get('alpha', 0.2))
+    beta = float(event.get('queryStringParameters', {}).get('beta', 0.8))
+    k = int(event.get('queryStringParameters', {}).get('k', 10))
 
     try:
         if mongo_search_engine:
             results = mongo_search_engine.search(query, alpha, beta, k)
         else:
-            return jsonify({'error': 'Search engine not available'}), 503
+            return {
+                'statusCode': 503,
+                'headers': {'Content-Type': 'application/json'},
+                'body': '{"error": "Search engine not available"}'
+            }
 
         response = {
             'query': query,
@@ -53,11 +60,17 @@ def search():
             ],
             'source': 'mongodb'
         }
-        return jsonify(response)
+        
+        import json
+        return {
+            'statusCode': 200,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps(response)
+        }
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# Vercel serverless function handler
-def handler(request):
-    with app.request_context(request.environ):
-        return app.full_dispatch_request()
+        import json
+        return {
+            'statusCode': 500,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps({'error': str(e)})
+        }
