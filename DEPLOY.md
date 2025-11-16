@@ -111,7 +111,7 @@ npm start
 
 ## 🔥 Your App is Ready!
 
-Frontend: `https://your-app.vercel.app`  
+Frontend: `https://your-app.vercel.app`
 Backend: `https://your-backend.railway.app`
 
 Search away! 🔍

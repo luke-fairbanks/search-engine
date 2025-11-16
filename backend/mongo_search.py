@@ -280,11 +280,11 @@ class MongoSearchEngine:
         idx = self._build_index()
         if not idx:
             return []
-        
+
         prefix_lower = prefix.lower()
         # Remove spaces and special chars for fuzzy matching
         prefix_normalized = ''.join(c for c in prefix_lower if c.isalnum())
-        
+
         # Find matching terms in vocabulary
         matching_terms = []
         for term in idx['idf'].keys():
@@ -300,43 +300,43 @@ class MongoSearchEngine:
             # Fuzzy match - all characters present in order
             elif len(prefix_normalized) >= 3 and self._fuzzy_match(prefix_normalized, term):
                 matching_terms.append((term, 3))  # Priority 3
-        
+
         # Sort by priority, then by IDF score (lower IDF = more common = better)
         matching_terms.sort(key=lambda x: (x[1], idx['idf'].get(x[0], float('inf'))))
         term_suggestions = [term for term, _ in matching_terms[:limit * 2]]
-        
+
         # Also get matching document titles with fuzzy matching
         title_suggestions = []
         for doc in idx['docs']:
             title_lower = doc.title.lower()
             title_normalized = ''.join(c for c in title_lower if c.isalnum())
-            
+
             # Check if prefix matches title (with or without spaces)
-            if (prefix_lower in title_lower or 
+            if (prefix_lower in title_lower or
                 (len(prefix_normalized) >= 3 and prefix_normalized in title_normalized)):
                 if title_lower not in title_suggestions:
                     title_suggestions.append(title_lower)
                     if len(title_suggestions) >= limit // 2:
                         break
-        
+
         # Combine term suggestions and title suggestions
         all_suggestions = []
         seen = set()
-        
+
         # Add title-based suggestions first (more specific)
         for title in title_suggestions:
             if title not in seen:
                 all_suggestions.append(title)
                 seen.add(title)
-        
+
         # Add term-based suggestions
         for term in term_suggestions:
             if term not in seen and len(all_suggestions) < limit:
                 all_suggestions.append(term)
                 seen.add(term)
-        
+
         return all_suggestions[:limit]
-    
+
     def _fuzzy_match(self, pattern: str, text: str) -> bool:
         """Check if all characters in pattern appear in text in order"""
         pattern_idx = 0

@@ -129,10 +129,10 @@ const SearchPage: React.FC = () => {
                 Powered by BM25 ranking and PageRank algorithm
               </p>
             </motion.div>
-            <SearchBox 
-              onSearch={handleSearch} 
-              loading={loading} 
-              initialQuery={query} 
+            <SearchBox
+              onSearch={handleSearch}
+              loading={loading}
+              initialQuery={query}
               hasSearched={hasSearched}
               onMobileFocus={setIsMobileFocused}
             />

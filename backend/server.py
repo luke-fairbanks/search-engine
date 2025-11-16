@@ -20,7 +20,17 @@ except ImportError:
 from mini_search import hybrid_rank, load_index
 
 app = Flask(__name__, static_folder='frontend/build', static_url_path='')
-CORS(app)  # Enable CORS for React development
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "http://localhost:3000",
+            "https://search-engine-two-flame.vercel.app",
+            "https://*.vercel.app"  # Allow all Vercel preview deployments
+        ],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
+    }
+})
 
 # Configuration
 DATA_DIR = os.environ.get('DATA_DIR', '../data_wiki')
@@ -117,10 +127,10 @@ def suggest():
     """Get search suggestions based on partial query"""
     query = request.args.get('q', '').strip().lower()
     limit = int(request.args.get('limit', 8))
-    
+
     if not query or len(query) < 2:
         return jsonify({'suggestions': []})
-    
+
     try:
         if USE_MONGODB and mongo_search_engine:
             # Get suggestions from MongoDB - search titles and extract unique terms
@@ -129,7 +139,7 @@ def suggest():
             # Get suggestions from file-based index with fuzzy matching
             idx, _ = load_index(DATA_DIR)
             query_normalized = ''.join(c for c in query if c.isalnum())
-            
+
             # Find matching terms in vocabulary
             matching_terms = []
             for term in idx['idf'].keys():
@@ -142,11 +152,11 @@ def suggest():
                 # Contains the query
                 elif query in term and len(query) >= 3:
                     matching_terms.append((term, 2, idx['idf'].get(term, 0)))
-            
+
             # Sort by priority (lower is better), then by IDF (lower is more common)
             matching_terms.sort(key=lambda x: (x[1], x[2]))
             suggestions = [term for term, _, _ in matching_terms[:limit]]
-        
+
         return jsonify({'suggestions': suggestions})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
