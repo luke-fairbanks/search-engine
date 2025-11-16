@@ -21,29 +21,22 @@ if MONGODB_URI:
     except Exception as e:
         print(f"MongoDB connection failed: {e}")
 
-def handler(event, context):
-    """Vercel serverless function handler"""
-    query = event.get('queryStringParameters', {}).get('q', '').strip()
+@app.route('/api/search')
+def search():
+    """Search endpoint"""
+    query = request.args.get('q', '').strip()
     if not query:
-        return {
-            'statusCode': 400,
-            'headers': {'Content-Type': 'application/json'},
-            'body': '{"error": "Query parameter q is required"}'
-        }
+        return jsonify({'error': 'Query parameter "q" is required'}), 400
 
-    alpha = float(event.get('queryStringParameters', {}).get('alpha', 0.2))
-    beta = float(event.get('queryStringParameters', {}).get('beta', 0.8))
-    k = int(event.get('queryStringParameters', {}).get('k', 10))
+    alpha = float(request.args.get('alpha', 0.2))
+    beta = float(request.args.get('beta', 0.8))
+    k = int(request.args.get('k', 10))
 
     try:
         if mongo_search_engine:
             results = mongo_search_engine.search(query, alpha, beta, k)
         else:
-            return {
-                'statusCode': 503,
-                'headers': {'Content-Type': 'application/json'},
-                'body': '{"error": "Search engine not available"}'
-            }
+            return jsonify({'error': 'Search engine not available'}), 503
 
         response = {
             'query': query,
@@ -60,17 +53,11 @@ def handler(event, context):
             ],
             'source': 'mongodb'
         }
-        
-        import json
-        return {
-            'statusCode': 200,
-            'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps(response)
-        }
+        return jsonify(response)
     except Exception as e:
-        import json
-        return {
-            'statusCode': 500,
-            'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({'error': str(e)})
-        }
+        return jsonify({'error': str(e)}), 500
+
+# Vercel serverless function handler
+def handler(request):
+    with app.request_context(request.environ):
+        return app.full_dispatch_request()

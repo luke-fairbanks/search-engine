@@ -1,8 +1,7 @@
 import axios from 'axios';
 import { SearchResponse, IndexStats } from '../types/SearchTypes';
 
-// Use relative path - Vercel will handle routing to serverless functions
-const API_BASE_URL = '/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
 export const searchApi = {
   search: async (query: string, k: number = 10, alpha: number = 0.2, beta: number = 0.8): Promise<SearchResponse> => {

@@ -4,20 +4,21 @@
   "outputDirectory": "frontend/build",
   "rewrites": [
     {
-      "source": "/api/search",
-      "destination": "/api/search.py"
-    },
-    {
-      "source": "/api/stats",
-      "destination": "/api/stats.py"
-    },
-    {
-      "source": "/api/suggest",
-      "destination": "/api/suggest.py"
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
     },
     {
       "source": "/(.*)",
-      "destination": "/frontend/build/index.html"
+      "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/**/*.py": {
+      "runtime": "python3.9"
+    }
+  },
+  "env": {
+    "MONGODB_URI": "@mongodb_uri",
+    "USE_MONGODB": "true"
+  }
 }
