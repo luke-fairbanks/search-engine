@@ -165,7 +165,9 @@ def suggest():
         print(f"Error in /api/suggest: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500@app.route('/api/crawler', methods=['POST'])
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/crawler', methods=['POST'])
 def crawler():
     """Start a crawl job"""
     try:

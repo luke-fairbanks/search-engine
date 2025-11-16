@@ -29,11 +29,9 @@ class MongoSearchEngine:
 
     def __init__(self, mongo_uri: str = 'mongodb://localhost:27017/', db_name: str = 'crawler_db'):
         """Initialize MongoDB connection and build index cache"""
-        # Add TLS parameters for Python 3.13 compatibility with MongoDB Atlas
+        # Simplified connection - let PyMongo handle TLS automatically for mongodb+srv://
         self.client = MongoClient(
             mongo_uri,
-            tls=True,
-            tlsAllowInvalidCertificates=False,
             serverSelectionTimeoutMS=30000,
             connectTimeoutMS=20000,
             socketTimeoutMS=20000
