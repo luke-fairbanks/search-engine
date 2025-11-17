@@ -84,6 +84,7 @@ const SearchBox: React.FC<SearchBoxProps> = ({ onSearch, loading = false, initia
     if (query.trim()) {
       onSearch(query.trim());
       setShowSuggestions(false);
+      setSelectedIndex(-1); // Reset selection
     }
   };
 
@@ -91,6 +92,7 @@ const SearchBox: React.FC<SearchBoxProps> = ({ onSearch, loading = false, initia
     setQuery(suggestion);
     onSearch(suggestion);
     setShowSuggestions(false);
+    setSelectedIndex(-1); // Reset selection
     setIsFocused(false);
     if (onMobileFocus && isMobile) {
       onMobileFocus(false);
@@ -125,6 +127,7 @@ const SearchBox: React.FC<SearchBoxProps> = ({ onSearch, loading = false, initia
 
   const handleBlur = () => {
     setIsFocused(false);
+    setSelectedIndex(-1); // Reset selection when blur
     if (onMobileFocus && isMobile) {
       onMobileFocus(false);
     }
