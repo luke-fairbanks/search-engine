@@ -34,95 +34,115 @@ const CrawlPage: React.FC = () => {
   });
   const [crawledNodes, setCrawledNodes] = useState<CrawlNode[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  const wsRef = useRef<WebSocket | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     return () => {
-      // Cleanup WebSocket on unmount
-      if (wsRef.current) {
-        wsRef.current.close();
+      // Cleanup polling on unmount
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
       }
     };
   }, []);
 
-  const startCrawl = () => {
+  const startCrawl = async () => {
     if (!startUrl.trim()) return;
 
-    // Get WebSocket URL from environment variable or default to localhost
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001';
-    // Convert http/https to ws/wss
-    const wsUrl = apiUrl.replace(/^http/, 'ws') + '/ws/crawl';
-
-    // Initialize WebSocket connection
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      console.log('WebSocket connected');
+    try {
       setIsConnected(true);
       setCrawlStats(prev => ({ ...prev, status: 'crawling' }));
       setCrawledNodes([]);
 
-      // Send crawl configuration
-      const config = {
-        action: 'start',
-        url: startUrl,
-        maxDepth,
-        maxPages,
-        saveToMongo: true
-      };
-      console.log('Sending config:', config);
-      ws.send(JSON.stringify(config));
-    };
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
-    ws.onmessage = (event) => {
+      // Start crawl job
+      const response = await fetch(`${apiUrl}/api/crawler`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: startUrl,
+          maxDepth,
+          maxPages
+        })
+      });
 
-      const data = JSON.parse(event.data);
-
-      if (data.type === 'node') {
-        // Update or add node
-        setCrawledNodes(prev => {
-          const existingIndex = prev.findIndex(n => n.url === data.node.url);
-          if (existingIndex >= 0) {
-            // Update existing node
-            const updated = [...prev];
-            updated[existingIndex] = data.node;
-            return updated;
-          } else {
-            // Add new node
-            return [...prev, data.node];
-          }
-        });
-      } else if (data.type === 'stats') {
-        // Update stats
-        setCrawlStats(data.stats);
-      } else if (data.type === 'complete') {
-        console.log('Crawl complete');
-        setCrawlStats(prev => ({ ...prev, status: 'completed' }));
-        ws.close();
-      } else if (data.type === 'error') {
-        console.error('Crawl error:', data);
-        setCrawlStats(prev => ({ ...prev, status: 'error' }));
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to start crawl');
       }
-    };
 
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setIsConnected(false);
+      const newJobId = data.job_id;
+      setJobId(newJobId);
+
+      // Start polling for updates
+      startPolling(newJobId, apiUrl);
+    } catch (error: any) {
+      console.error('Error starting crawl:', error);
       setCrawlStats(prev => ({ ...prev, status: 'error' }));
-    };
-
-    ws.onclose = () => {
-      console.log('WebSocket closed');
       setIsConnected(false);
-    };
+    }
+  };
+
+  const startPolling = (jobId: string, apiUrl: string) => {
+    // Clear any existing interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+
+    // Poll immediately
+    pollCrawlStatus(jobId, apiUrl);
+
+    // Then poll every 2 seconds
+    pollingIntervalRef.current = setInterval(() => {
+      pollCrawlStatus(jobId, apiUrl);
+    }, 2000);
+  };
+
+  const pollCrawlStatus = async (jobId: string, apiUrl: string) => {
+    try {
+      // Trigger batch processing
+      const processResponse = await fetch(`${apiUrl}/api/crawler/${jobId}/process`, {
+        method: 'POST'
+      });
+      
+      if (!processResponse.ok) {
+        throw new Error('Failed to process batch');
+      }
+
+      const job = await processResponse.json();
+
+      // Update stats
+      setCrawlStats({
+        totalPages: job.stats.total_pages,
+        completedPages: job.stats.completed_pages,
+        queueSize: job.stats.queue_size,
+        duration: job.stats.duration,
+        status: job.status === 'completed' ? 'completed' : 'crawling'
+      });
+
+      // Update nodes
+      setCrawledNodes(job.nodes);
+
+      // Stop polling if completed
+      if (job.status === 'completed' && pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+        setIsConnected(false);
+      }
+    } catch (error) {
+      console.error('Error polling status:', error);
+    }
   };
 
   const stopCrawl = () => {
-    if (wsRef.current) {
-      wsRef.current.send(JSON.stringify({ action: 'stop' }));
-      wsRef.current.close();
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
     }
+    setIsConnected(false);
+    setCrawlStats(prev => ({ ...prev, status: 'idle' }));
   };
 
   return (

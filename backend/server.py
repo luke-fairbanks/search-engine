@@ -179,7 +179,7 @@ def suggest():
 
 @app.route('/api/crawler', methods=['POST'])
 def crawler():
-    """Start a crawl job"""
+    """Start a crawl job (polling-based for Vercel)"""
     try:
         data = request.get_json()
 
@@ -188,8 +188,7 @@ def crawler():
 
         start_url = data.get('url')
         max_depth = data.get('maxDepth', 2)
-        max_pages = data.get('maxPages', 100)
-        save_to_mongo = data.get('saveToMongo', True)
+        max_pages = min(data.get('maxPages', 50), 50)  # Cap at 50
 
         # Validate URL
         from urllib.parse import urlparse
@@ -200,45 +199,99 @@ def crawler():
         except:
             return jsonify({'error': 'Invalid URL format'}), 400
 
-        # Check MongoDB availability if save_to_mongo is requested
-        if save_to_mongo and not USE_MONGODB:
-            return jsonify({'error': 'MongoDB is not enabled'}), 400
+        # Check MongoDB availability
+        if not USE_MONGODB or not mongo_search_engine:
+            return jsonify({'error': 'MongoDB is required for crawler'}), 400
 
-        # Import crawler synchronously
+        # Create crawler job
         import asyncio
-        from crawler_ws import WebCrawler
-
-        # Setup MongoDB client if needed
-        mongo_client = None
-        if save_to_mongo and USE_MONGODB:
-            from motor.motor_asyncio import AsyncIOMotorClient
-            mongo_client = AsyncIOMotorClient(MONGODB_URI)
-
-        # Create crawler instance
-        crawler = WebCrawler(
-            start_url=start_url,
-            max_depth=max_depth,
-            max_pages=max_pages,
-            save_to_mongo=save_to_mongo,
-            mongo_client=mongo_client
+        from motor.motor_asyncio import AsyncIOMotorClient
+        from crawler_jobs import CrawlerJobManager
+        
+        mongo_client = AsyncIOMotorClient(MONGODB_URI)
+        job_manager = CrawlerJobManager(mongo_client)
+        
+        # Create job asynchronously
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        job_id = loop.run_until_complete(
+            job_manager.create_job(start_url, max_depth, max_pages)
         )
-
-        # Run crawler in background (non-blocking)
-        # For now, return immediately and let it run
-        # In production, you'd use Celery or similar for background tasks
+        loop.close()
 
         return jsonify({
             'status': 'started',
-            'message': f'Crawl job started for {start_url}',
-            'config': {
-                'url': start_url,
-                'maxDepth': max_depth,
-                'maxPages': max_pages,
-                'saveToMongo': save_to_mongo
-            }
+            'job_id': job_id,
+            'message': f'Crawl job created for {start_url}'
         }), 202
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/crawler/<job_id>', methods=['GET'])
+def get_crawler_status(job_id):
+    """Get crawler job status"""
+    try:
+        if not USE_MONGODB or not mongo_search_engine:
+            return jsonify({'error': 'MongoDB is required'}), 400
+        
+        from motor.motor_asyncio import AsyncIOMotorClient
+        from crawler_jobs import CrawlerJobManager
+        
+        mongo_client = AsyncIOMotorClient(MONGODB_URI)
+        job_manager = CrawlerJobManager(mongo_client)
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        job = loop.run_until_complete(job_manager.get_job(job_id))
+        loop.close()
+        
+        if not job:
+            return jsonify({'error': 'Job not found'}), 404
+        
+        # Remove _id for JSON serialization
+        job.pop('_id', None)
+        return jsonify(job)
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/crawler/<job_id>/process', methods=['POST'])
+def process_crawler_batch(job_id):
+    """Process a batch of URLs for the job (called by frontend polling)"""
+    try:
+        if not USE_MONGODB or not mongo_search_engine:
+            return jsonify({'error': 'MongoDB is required'}), 400
+        
+        from motor.motor_asyncio import AsyncIOMotorClient
+        from crawler_jobs import CrawlerJobManager
+        
+        mongo_client = AsyncIOMotorClient(MONGODB_URI)
+        job_manager = CrawlerJobManager(mongo_client)
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        job = loop.run_until_complete(
+            job_manager.process_job_batch(job_id, batch_size=5, timeout=8)
+        )
+        loop.close()
+        
+        if 'error' in job:
+            return jsonify(job), 404
+        
+        # Remove _id for JSON serialization
+        job.pop('_id', None)
+        return jsonify(job)
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/', defaults={'path': ''})
