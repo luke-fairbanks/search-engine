@@ -22,17 +22,20 @@ from mini_search import hybrid_rank, load_index
 app = Flask(__name__, static_folder='frontend/build', static_url_path='')
 CORS(app, resources={
     r"/*": {
-        "origins": [
-            "http://localhost:3000",
-            "https://search-engine-two-flame.vercel.app",
-            "https://search-engine-fjbf-fgncla5ad-lukefairbanks-projects.vercel.app",
-            "https://*.vercel.app"  # Allow all Vercel preview deployments
-        ],
+        "origins": "*",
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type"],
         "supports_credentials": True
     }
 })
+
+# Additional CORS headers for Vercel
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 # Configuration
 DATA_DIR = os.environ.get('DATA_DIR', '../data_wiki')
