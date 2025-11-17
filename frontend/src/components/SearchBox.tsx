@@ -134,7 +134,7 @@ const SearchBox: React.FC<SearchBoxProps> = ({ onSearch, loading = false, initia
   };
 
   // On mobile when focused, hide the button. On desktop, show when not searched yet or when focused
-  const showButton = isMobile ? !isFocused : (!hasSearched || isFocused);
+  const showButton = isMobile ? false : (!hasSearched || isFocused);
 
   return (
     <form onSubmit={handleSubmit} className="relative w-full flex max-w-3xl mx-auto px-2 sm:px-0">

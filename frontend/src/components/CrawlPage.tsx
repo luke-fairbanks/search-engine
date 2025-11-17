@@ -68,7 +68,7 @@ const CrawlPage: React.FC = () => {
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || 'Failed to start crawl');
       }
@@ -106,7 +106,7 @@ const CrawlPage: React.FC = () => {
       const processResponse = await fetch(`${apiUrl}/api/crawler/${jobId}/process`, {
         method: 'POST'
       });
-      
+
       if (!processResponse.ok) {
         throw new Error('Failed to process batch');
       }

@@ -15,12 +15,12 @@ import aiohttp
 
 class CrawlerJobManager:
     """Manages crawler jobs using MongoDB for state persistence"""
-    
+
     def __init__(self, mongo_client, db_name='crawler_db'):
         self.db = mongo_client[db_name]
         self.jobs_collection = self.db.crawler_jobs
         self.pages_collection = self.db.crawled_pages
-    
+
     async def create_job(self, start_url, max_depth=2, max_pages=50):
         """Create a new crawler job"""
         job_id = str(uuid.uuid4())
@@ -44,51 +44,51 @@ class CrawlerJobManager:
         }
         await self.jobs_collection.insert_one(job)
         return job_id
-    
+
     async def get_job(self, job_id):
         """Get job status"""
         return await self.jobs_collection.find_one({'job_id': job_id})
-    
+
     async def process_job_batch(self, job_id, batch_size=5, timeout=8):
         """Process a batch of URLs from the job queue (time-limited for serverless)"""
         job = await self.get_job(job_id)
         if not job:
             return {'error': 'Job not found'}
-        
+
         if job['status'] == 'completed':
             return job
-        
+
         # Mark as running
         await self.jobs_collection.update_one(
             {'job_id': job_id},
             {'$set': {'status': 'running', 'updated_at': datetime.utcnow()}}
         )
-        
+
         start_time = time.time()
         processed = 0
-        
+
         async with aiohttp.ClientSession() as session:
             while job['queue'] and processed < batch_size:
                 # Check timeout (leave 2s buffer for cleanup)
                 if time.time() - start_time > timeout:
                     break
-                
+
                 # Stop if max pages reached
                 if len(job['visited']) >= job['max_pages']:
                     break
-                
+
                 # Get next URL from queue
                 current = job['queue'].pop(0)
                 url = current['url']
                 depth = current['depth']
                 parent = current['parent']
-                
+
                 # Skip if already visited
                 if url in job['visited']:
                     continue
-                
+
                 job['visited'].append(url)
-                
+
                 # Add node as crawling
                 node = {
                     'url': url,
@@ -97,11 +97,11 @@ class CrawlerJobManager:
                     'parent': parent
                 }
                 job['nodes'].append(node)
-                
+
                 # Crawl the page
                 try:
                     page_data, links = await self._crawl_page(url, depth, session, job['start_url'])
-                    
+
                     if page_data:
                         # Update node status
                         job['nodes'][-1].update({
@@ -109,10 +109,10 @@ class CrawlerJobManager:
                             'title': page_data['title'],
                             'linkCount': len(links)
                         })
-                        
+
                         # Save to pages collection
                         await self._save_page(url, page_data, depth, parent, job['start_url'])
-                        
+
                         # Add new links to queue
                         if depth < job['max_depth']:
                             for link in links[:10]:  # Limit links per page
@@ -124,13 +124,13 @@ class CrawlerJobManager:
                                     })
                     else:
                         job['nodes'][-1]['status'] = 'error'
-                        
+
                 except Exception as e:
                     job['nodes'][-1]['status'] = 'error'
                     print(f"Error crawling {url}: {e}")
-                
+
                 processed += 1
-        
+
         # Update stats
         duration = time.time() - start_time
         job['stats'].update({
@@ -139,13 +139,13 @@ class CrawlerJobManager:
             'queue_size': len(job['queue']),
             'duration': job['stats']['duration'] + duration
         })
-        
+
         # Check if job is complete
         if not job['queue'] or len(job['visited']) >= job['max_pages']:
             job['status'] = 'completed'
         else:
             job['status'] = 'pending'
-        
+
         # Save job state
         await self.jobs_collection.update_one(
             {'job_id': job_id},
@@ -160,54 +160,54 @@ class CrawlerJobManager:
                 }
             }
         )
-        
+
         return job
-    
+
     async def _crawl_page(self, url, depth, session, base_url):
         """Crawl a single page"""
         try:
             async with session.get(url, timeout=5) as response:
                 if response.status != 200:
                     return None, []
-                
+
                 html = await response.text()
                 soup = BeautifulSoup(html, 'html.parser')
-                
+
                 # Extract title
                 title = soup.find('title')
                 title_text = title.string.strip() if title else url
-                
+
                 # Remove script and style elements
                 for script in soup(['script', 'style', 'noscript']):
                     script.decompose()
-                
+
                 # Get limited text content
                 text = soup.get_text()[:5000]
                 lines = (line.strip() for line in text.splitlines())
                 chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
                 full_text = ' '.join(chunk for chunk in chunks if chunk)[:5000]
-                
+
                 # Extract snippet
                 meta_desc = soup.find('meta', attrs={'name': 'description'})
                 snippet = meta_desc.get('content', '')[:200] if meta_desc else full_text[:200]
-                
+
                 # Extract links (limit to 20)
                 links = []
                 for link in soup.find_all('a', href=True)[:20]:
                     absolute_url = urljoin(url, link['href'])
                     if self._is_valid_url(absolute_url, base_url):
                         links.append(absolute_url)
-                
+
                 return {
                     'title': title_text,
                     'text': full_text,
                     'snippet': snippet
                 }, links
-                
+
         except Exception as e:
             print(f"Error crawling {url}: {e}")
             return None, []
-    
+
     def _is_valid_url(self, url, base_url):
         """Check if URL is valid and belongs to same domain"""
         try:
@@ -219,7 +219,7 @@ class CrawlerJobManager:
             )
         except:
             return False
-    
+
     async def _save_page(self, url, page_data, depth, parent, start_url):
         """Save page to MongoDB"""
         try:
@@ -237,7 +237,7 @@ class CrawlerJobManager:
                 })
         except Exception as e:
             print(f"Error saving page {url}: {e}")
-    
+
     async def cleanup_old_jobs(self, days=7):
         """Clean up old completed jobs"""
         cutoff = datetime.utcnow() - timedelta(days=days)

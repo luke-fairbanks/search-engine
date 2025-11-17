@@ -207,10 +207,10 @@ def crawler():
         import asyncio
         from motor.motor_asyncio import AsyncIOMotorClient
         from crawler_jobs import CrawlerJobManager
-        
+
         mongo_client = AsyncIOMotorClient(MONGODB_URI)
         job_manager = CrawlerJobManager(mongo_client)
-        
+
         # Create job asynchronously
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -236,26 +236,26 @@ def get_crawler_status(job_id):
     try:
         if not USE_MONGODB or not mongo_search_engine:
             return jsonify({'error': 'MongoDB is required'}), 400
-        
+
         from motor.motor_asyncio import AsyncIOMotorClient
         from crawler_jobs import CrawlerJobManager
-        
+
         mongo_client = AsyncIOMotorClient(MONGODB_URI)
         job_manager = CrawlerJobManager(mongo_client)
-        
+
         import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         job = loop.run_until_complete(job_manager.get_job(job_id))
         loop.close()
-        
+
         if not job:
             return jsonify({'error': 'Job not found'}), 404
-        
+
         # Remove _id for JSON serialization
         job.pop('_id', None)
         return jsonify(job)
-        
+
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -267,13 +267,13 @@ def process_crawler_batch(job_id):
     try:
         if not USE_MONGODB or not mongo_search_engine:
             return jsonify({'error': 'MongoDB is required'}), 400
-        
+
         from motor.motor_asyncio import AsyncIOMotorClient
         from crawler_jobs import CrawlerJobManager
-        
+
         mongo_client = AsyncIOMotorClient(MONGODB_URI)
         job_manager = CrawlerJobManager(mongo_client)
-        
+
         import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -281,14 +281,14 @@ def process_crawler_batch(job_id):
             job_manager.process_job_batch(job_id, batch_size=5, timeout=8)
         )
         loop.close()
-        
+
         if 'error' in job:
             return jsonify(job), 404
-        
+
         # Remove _id for JSON serialization
         job.pop('_id', None)
         return jsonify(job)
-        
+
     except Exception as e:
         import traceback
         traceback.print_exc()
