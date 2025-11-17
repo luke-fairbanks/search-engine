@@ -25,10 +25,12 @@ CORS(app, resources={
         "origins": [
             "http://localhost:3000",
             "https://search-engine-two-flame.vercel.app",
+            "https://search-engine-fjbf-fgncla5ad-lukefairbanks-projects.vercel.app",
             "https://*.vercel.app"  # Allow all Vercel preview deployments
         ],
         "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type"]
+        "allow_headers": ["Content-Type"],
+        "supports_credentials": True
     }
 })
 
